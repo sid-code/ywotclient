@@ -10,6 +10,7 @@ class YWOTClient
 
   REFRESH_RATE = 3
   POLL_RATE = 0.010
+  EDIT_SEND_RATE = 1
 
   def initialize
     # maps [x,y] to tile JSON object as given by server
@@ -22,6 +23,9 @@ class YWOTClient
     @cy = 0
 
     @mode = :normal
+
+    @csrf_cookie = nil
+    @edit_queue = []
 
   end
 
@@ -53,8 +57,21 @@ class YWOTClient
 
   end
 
+  def obtain_csrf_token
+    EM::HttpRequest.new("http://www.yourworldoftext.com/").get.callback do |http|
+      @csrf_cookie = http.response_header["SET_COOKIE"].split(/;\s*/).first
+      @csrf_token = @csrf_cookie.split("=").last
+    end.errback do |http|
+      raise "failed to obtain CSRF token!"
+    end
+  end
+
   def pos_to_tile(x, y)
     [x / 16, y / 8]
+  end
+
+  def pos_to_loc(x, y)
+    [*pos_to_tile(x, y).reverse, y % 8, x % 16]
   end
 
   def tile_offset(x, y)
@@ -65,25 +82,30 @@ class YWOTClient
     [tx * 16, ty * 8]
   end
 
+  def craft_edit(x, y, char)
+    time = Time.now.to_i * 1000
+    [*pos_to_loc(x, y), time, char, "Email me before scripting"] 
+  end
+
+  def get_dims
+    width, height = Curses.cols, Curses.lines
+    [@x - width/2, @y - height/2, @x + width/2, @y + height/2]
+  end
+
   def display
     Curses.init_screen
     Curses.crmode
     Curses.noecho
     Curses.setpos(0, 0)
     Curses.timeout = 0
-    width = Curses.cols
-    height = Curses.lines
-
-    get_dims = lambda { 
-      [@x - width/2, @y - height/2, @x + width/2, @y + height/2]
-    }
+    width, height = Curses.cols, Curses.lines
 
     @cx = width/2
     @cy = height/2
 
     draw = proc do
       Curses.clear
-      topx, topy, botx, boty = get_dims.call
+      topx, topy, botx, boty = get_dims
 
       (topx..botx).each do |x|
         (topy..boty).each do |y|
@@ -109,11 +131,27 @@ class YWOTClient
     end
 
     EM.add_periodic_timer(REFRESH_RATE) do
-      topx, topy, botx, boty = get_dims.call
+      topx, topy, botx, boty = get_dims
       topx_t, topy_t = pos_to_tile(topx, topy)
       botx_t, boty_t = pos_to_tile(botx, boty)
       make_request(topx_t - 1, topy_t - 1, botx_t + 1, boty_t + 1)
       draw.call
+    end
+
+    EM.add_periodic_timer(EDIT_SEND_RATE) do
+      next if @edit_queue.size == 0
+      next if !@csrf_cookie
+
+
+      EM::HttpRequest.new(@url).post(
+
+        head: {"cookie" => @csrf_cookie, "X-CSRFToken" => @csrf_token},
+        body: "edits=#{JSON.dump(@edit_queue)}"
+      )
+
+      status "sent #{@edit_queue.size} edits"
+
+      @edit_queue = []
     end
 
     EM.add_periodic_timer(POLL_RATE) do
@@ -124,31 +162,24 @@ class YWOTClient
         if cmd == "q"
           quit
         elsif DELTAS[cmd]
-          dx, dy = DELTAS[cmd]
-          @cx += dx
-          @cy += dy
-          if @cx >= width
-            @x += @cx - width + 1
-            @cx = width - 1
-          end
-          if @cx < 0
-            @x += @cx
-            @cx = 0
-          end
-          if @cy >= height
-            @y += @cy - height + 1
-            @cy = height - 1
-          end
-          if @cy < 0
-            @y += @cy
-            @cy = 0
-          end
+          move_by(*DELTAS[cmd])
         elsif cmd == "i"
           @mode = :insert
+          @insert_row = @x + @cx
         end
       when :insert
         if cmd == 27
           @mode = :normal
+        elsif cmd == 10
+          @cx = @insert_row - @x
+          move_by(0, 1)
+          fix_coords
+        elsif cmd == 127
+          move_by(-1, 0)
+          setchar(" ")
+        elsif cmd != nil
+          setchar(cmd)
+          move_by(1, 0)
         end
 
       end
@@ -160,6 +191,45 @@ class YWOTClient
 
     Signal.trap("INT") { quit }
   end
+
+  def move_by(dx, dy)
+    @cx += dx
+    @cy += dy
+    fix_coords
+  end
+
+  def fix_coords
+    width, height = Curses.cols, Curses.lines
+
+    if @cx >= width
+      @x += @cx - width + 1
+      @cx = width - 1
+    end
+    if @cx < 0
+      @x += @cx
+      @cx = 0
+    end
+    if @cy >= height
+      @y += @cy - height + 1
+      @cy = height - 1
+    end
+    if @cy < 0
+      @y += @cy
+      @cy = 0
+    end
+  end
+
+  # edit the character under the cursor
+  def setchar(char)
+    topx, topy, _, _ = get_dims
+    edit = craft_edit(topx + @cx, topy + @cy, char)
+    ty, tx, y, x, _, _, _ = edit
+    offset = tile_offset(x, y)
+    @tiles[[tx, ty]]["content"][offset] = char
+
+    @edit_queue << edit
+  end
+
 
   def quit
     Curses.close_screen
@@ -186,5 +256,6 @@ end
 
 EM.run do
   cl = YWOTClient.new
+  cl.obtain_csrf_token
   cl.display
 end
