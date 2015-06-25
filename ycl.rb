@@ -16,8 +16,12 @@ class YWOTClient
     @tiles = {}
     @url = "http://www.yourworldoftext.com/"
 
-    @x = 2
-    @y = 3
+    @x = 0
+    @y = 0
+    @cx = 0
+    @cy = 0
+
+    @mode = :normal
 
   end
 
@@ -74,6 +78,9 @@ class YWOTClient
       [@x - width/2, @y - height/2, @x + width/2, @y + height/2]
     }
 
+    @cx = width/2
+    @cy = height/2
+
     draw = proc do
       Curses.clear
       topx, topy, botx, boty = get_dims.call
@@ -95,6 +102,10 @@ class YWOTClient
 
         end
       end
+
+      status "-- #{@mode.to_s.upcase} --"
+
+      Curses.setpos(@cy, @cx)
     end
 
     EM.add_periodic_timer(REFRESH_RATE) do
@@ -108,13 +119,41 @@ class YWOTClient
     EM.add_periodic_timer(POLL_RATE) do
       cmd = Curses.getch
 
-      case cmd
-      when "q"
-        quit
-      when "l", "h", "j", "k"
-        dx, dy = DELTAS[cmd]
-        @x += dx
-        @y += dy
+      case @mode
+      when :normal
+        if cmd == "q"
+          quit
+        elsif DELTAS[cmd]
+          dx, dy = DELTAS[cmd]
+          @cx += dx
+          @cy += dy
+          if @cx >= width
+            @x += @cx - width + 1
+            @cx = width - 1
+          end
+          if @cx < 0
+            @x += @cx
+            @cx = 0
+          end
+          if @cy >= height
+            @y += @cy - height + 1
+            @cy = height - 1
+          end
+          if @cy < 0
+            @y += @cy
+            @cy = 0
+          end
+        elsif cmd == "i"
+          @mode = :insert
+        end
+      when :insert
+        if cmd == 27
+          @mode = :normal
+        end
+
+      end
+
+      if cmd
         draw.call
       end
     end
@@ -133,7 +172,16 @@ class YWOTClient
     Curses.addstr(msg)
   end
 
-  DELTAS = {"l" => [1, 0], "h" => [-1, 0], "j" => [0, 1], "k" => [0, -1]}
+  DELTAS = {
+    "l" => [1, 0],
+    "h" => [-1, 0],
+    "j" => [0, 1],
+    "k" => [0, -1],
+    "L" => [16, 0],
+    "H" => [-16, 0],
+    "J" => [0, 8],
+    "K" => [0, -8],
+  }
 end
 
 EM.run do
