@@ -84,12 +84,43 @@ class YWOTClient
 
   def craft_edit(x, y, char)
     time = Time.now.to_i * 1000
-    [*pos_to_loc(x, y), time, char, "Email me before scripting"] 
+    [*pos_to_loc(x, y), time, char, "Email me before scripting"]
   end
 
   def get_dims
     width, height = Curses.cols, Curses.lines
     [@x - width/2, @y - height/2, @x + width/2, @y + height/2]
+  end
+
+  def draw
+    width, height = Curses.cols, Curses.lines
+
+    Curses.clear
+    topx, topy, botx, boty = get_dims
+
+    (topx..botx).each do |x|
+      (topy..boty).each do |y|
+        realx, realy = x - topx, y - topy
+        Curses.setpos(realy, realx)
+        tx, ty = pos_to_tile(x, y)
+        offset = tile_offset(x, y)
+        begin
+          content = get_tile_content(tx, ty)
+          char = content[offset]
+          char = "." if char.width > 1
+          Curses.addstr(char)
+        rescue NoMethodError => e
+          # this just means the tile wasn't found.
+        end
+
+      end
+    end
+
+    Curses.setpos(@cy, @cx)
+  end
+
+  def update_status
+    status "-- #{@mode.to_s.upcase} --  |  #{pos_to_loc(@x + @cx, @y + @cy)}"
   end
 
   def display
@@ -103,39 +134,12 @@ class YWOTClient
     @cx = width/2
     @cy = height/2
 
-    draw = proc do
-      Curses.clear
-      topx, topy, botx, boty = get_dims
-
-      (topx..botx).each do |x|
-        (topy..boty).each do |y|
-          realx, realy = x - topx, y - topy
-          Curses.setpos(realy, realx)
-          tx, ty = pos_to_tile(x, y)
-          offset = tile_offset(x, y)
-          begin
-            content = get_tile_content(tx, ty)
-            char = content[offset]
-            char = "." if char.width > 1
-            Curses.addstr(char)
-          rescue NoMethodError => e
-            # this just means the tile wasn't found.
-          end
-
-        end
-      end
-
-      status "-- #{@mode.to_s.upcase} --"
-
-      Curses.setpos(@cy, @cx)
-    end
-
     EM.add_periodic_timer(REFRESH_RATE) do
       topx, topy, botx, boty = get_dims
       topx_t, topy_t = pos_to_tile(topx, topy)
       botx_t, boty_t = pos_to_tile(botx, boty)
       make_request(topx_t - 1, topy_t - 1, botx_t + 1, boty_t + 1)
-      draw.call
+      draw
     end
 
     EM.add_periodic_timer(EDIT_SEND_RATE) do
@@ -166,10 +170,12 @@ class YWOTClient
         elsif cmd == "i"
           @mode = :insert
           @insert_row = @x + @cx
+          draw
         end
       when :insert
         if cmd == 27
           @mode = :normal
+          draw
         elsif cmd == 10
           @cx = @insert_row - @x
           move_by(0, 1)
@@ -177,16 +183,17 @@ class YWOTClient
         elsif cmd == 127
           move_by(-1, 0)
           setchar(" ")
+          draw
         elsif cmd != nil
           setchar(cmd)
           move_by(1, 0)
+          draw
         end
 
       end
 
-      if cmd
-        draw.call
-      end
+      update_status
+      Curses.setpos(@cy, @cx)
     end
 
     Signal.trap("INT") { quit }
@@ -217,6 +224,8 @@ class YWOTClient
       @y += @cy
       @cy = 0
     end
+
+    draw
   end
 
   # edit the character under the cursor
@@ -225,7 +234,7 @@ class YWOTClient
     edit = craft_edit(topx + @cx, topy + @cy, char)
     ty, tx, y, x, _, _, _ = edit
     offset = tile_offset(x, y)
-    @tiles[[tx, ty]]["content"][offset] = char
+    (@tiles[[tx, ty]]["content"][offset] = char) rescue NoMethodError
 
     @edit_queue << edit
   end
