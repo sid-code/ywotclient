@@ -181,6 +181,8 @@ class YWOTClient
           @mode = :insert
           @insert_row = @x + @cx
           draw
+        elsif cmd == "e"
+          eval(File.read("./script.rb"))
         end
       when :insert
         if cmd == 27
