@@ -12,6 +12,9 @@ class YWOTClient
   POLL_RATE = 0.010
   EDIT_SEND_RATE = 1
 
+  TILE_HEIGHT = 8
+  TILE_WIDTH = 16
+
   def initialize
     # maps [x,y] to tile JSON object as given by server
     @tiles = {}
@@ -67,19 +70,19 @@ class YWOTClient
   end
 
   def pos_to_tile(x, y)
-    [x / 16, y / 8]
+    [x / TILE_WIDTH, y / TILE_HEIGHT]
   end
 
   def pos_to_loc(x, y)
-    [*pos_to_tile(x, y).reverse, y % 8, x % 16]
+    [*pos_to_tile(x, y).reverse, y % TILE_HEIGHT, x % TILE_WIDTH]
   end
 
   def tile_offset(x, y)
-    (y % 8) * 16 + x % 16
+    (y % TILE_HEIGHT) * TILE_WIDTH + x % TILE_WIDTH
   end
 
   def tile_to_pos(tx, ty)
-    [tx * 16, ty * 8]
+    [tx * TILE_WIDTH, ty * TILE_HEIGHT]
   end
 
   def craft_edit(x, y, char)
@@ -256,10 +259,10 @@ class YWOTClient
     "h" => [-1, 0],
     "j" => [0, 1],
     "k" => [0, -1],
-    "L" => [16, 0],
-    "H" => [-16, 0],
-    "J" => [0, 8],
-    "K" => [0, -8],
+    "L" => [TILE_WIDTH, 0],
+    "H" => [-TILE_WIDTH, 0],
+    "J" => [0, TILE_HEIGHT],
+    "K" => [0, -TILE_HEIGHT],
   }
 end
 
