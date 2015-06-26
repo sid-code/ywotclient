@@ -18,7 +18,7 @@ class YWOTClient
   def initialize
     # maps [x,y] to tile JSON object as given by server
     @tiles = {}
-    @url = "http://www.yourworldoftext.com/"
+    @url = "http://www.yourworldoftext.com/" + (ARGV[0] || "")
 
     @x = 0
     @y = 0
