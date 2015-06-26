@@ -8,9 +8,9 @@ require "wcwidth"
 
 class YWOTClient
 
-  REFRESH_RATE = 3
+  REFRESH_RATE = 1
   POLL_RATE = 0.010
-  EDIT_SEND_RATE = 1
+  EDIT_SEND_RATE = 0.25
 
   TILE_HEIGHT = 8
   TILE_WIDTH = 16
