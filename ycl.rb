@@ -85,9 +85,13 @@ class YWOTClient
     [tx * TILE_WIDTH, ty * TILE_HEIGHT]
   end
 
-  def craft_edit(x, y, char)
+  def craft_edit_raw(tile_y, tile_x, x, y, char)
     time = Time.now.to_i * 1000
-    [*pos_to_loc(x, y), time, char, "Email me before scripting"]
+    [tile_y, tile_x, x, y, time, char, "Email me before scripting"]
+  end
+
+  def craft_edit(x, y, char)
+    craft_edit_raw(*pos_to_loc(x, y), char)
   end
 
   def get_dims
