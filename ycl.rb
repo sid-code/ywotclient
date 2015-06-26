@@ -15,6 +15,8 @@ class YWOTClient
   TILE_HEIGHT = 8
   TILE_WIDTH = 16
 
+  EDIT_BATCH_SIZE = 150
+
   def initialize
     # maps [x,y] to tile JSON object as given by server
     @tiles = {}
@@ -135,15 +137,16 @@ class YWOTClient
   end
 
   def send_edits
+    edits_to_send = @edit_queue.shift(EDIT_BATCH_SIZE)
+
     EM::HttpRequest.new(@url).post(
 
       head: {"cookie" => @csrf_cookie, "X-CSRFToken" => @csrf_token},
-      body: "edits=#{JSON.dump(@edit_queue)}"
-    )
+      body: "edits=#{JSON.dump(edits_to_send)}"
+    ).callback do |http|
+    end
 
-    status "sent #{@edit_queue.size} edits"
-
-    @edit_queue = []
+    status "sent #{edits_to_send.size} edits"
   end
 
   def display
