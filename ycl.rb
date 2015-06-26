@@ -102,7 +102,7 @@ class YWOTClient
 
   def get_dims
     width, height = Curses.cols, Curses.lines
-    [@x - width/2, @y - height/2, @x + width/2, @y + height/2]
+    [@x, @y, @x + width, @y + height]
   end
 
   def draw
@@ -155,8 +155,8 @@ class YWOTClient
     Curses.noecho
     Curses.setpos(0, 0)
     Curses.timeout = 0
-    width, height = Curses.cols, Curses.lines
 
+    width, height = Curses.cols, Curses.lines
     @cx = width/2
     @cy = height/2
 
@@ -249,13 +249,13 @@ class YWOTClient
 
   # edit the character under the cursor
   def setcurchar(char)
-    topx, topy, _, _ = get_dims
-    setchar(topx + @cx, topy + @cy, char)
+    setchar(@cx, @cy, char)
   end
 
   # edit the character at x, y
   def setchar(x, y, char)
-    edit = craft_edit(x, y, char)
+    topx, topy, _, _ = get_dims
+    edit = craft_edit(topx + x, topy + y, char)
     ty, tx, y, x, _, _, _ = edit
     offset = tile_offset(x, y)
     (@tiles[[tx, ty]]["content"][offset] = char) rescue NoMethodError
