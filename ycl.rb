@@ -194,10 +194,10 @@ class YWOTClient
           fix_coords
         elsif cmd == 127
           move_by(-1, 0)
-          setchar(" ")
+          setcurchar(" ")
           draw
         elsif cmd != nil
-          setchar(cmd)
+          setcurchar(cmd)
           move_by(1, 0)
           draw
         end
@@ -241,15 +241,21 @@ class YWOTClient
   end
 
   # edit the character under the cursor
-  def setchar(char)
+  def setcurchar(char)
     topx, topy, _, _ = get_dims
-    edit = craft_edit(topx + @cx, topy + @cy, char)
+    setchar(topx + @cx, topy + @cy, char)
+  end
+
+  # edit the character at x, y
+  def setchar(x, y, char)
+    edit = craft_edit(x, y, char)
     ty, tx, y, x, _, _, _ = edit
     offset = tile_offset(x, y)
     (@tiles[[tx, ty]]["content"][offset] = char) rescue NoMethodError
 
     @edit_queue << edit
   end
+
 
 
   def quit
