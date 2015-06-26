@@ -130,6 +130,18 @@ class YWOTClient
     status "-- #{@mode.to_s.upcase} --  |  #{pos_to_loc(@x + @cx, @y + @cy)}"
   end
 
+  def send_edits
+    EM::HttpRequest.new(@url).post(
+
+      head: {"cookie" => @csrf_cookie, "X-CSRFToken" => @csrf_token},
+      body: "edits=#{JSON.dump(@edit_queue)}"
+    )
+
+    status "sent #{@edit_queue.size} edits"
+
+    @edit_queue = []
+  end
+
   def display
     Curses.init_screen
     Curses.crmode
@@ -153,16 +165,7 @@ class YWOTClient
       next if @edit_queue.size == 0
       next if !@csrf_cookie
 
-
-      EM::HttpRequest.new(@url).post(
-
-        head: {"cookie" => @csrf_cookie, "X-CSRFToken" => @csrf_token},
-        body: "edits=#{JSON.dump(@edit_queue)}"
-      )
-
-      status "sent #{@edit_queue.size} edits"
-
-      @edit_queue = []
+      send_edits
     end
 
     EM.add_periodic_timer(POLL_RATE) do
