@@ -256,13 +256,12 @@ class YWOTClient
 
   # edit the character under the cursor
   def setcurchar(char)
-    setchar(@cx, @cy, char)
+    setchar(@x + @cx, @y + @cy, char)
   end
 
   # edit the character at x, y
   def setchar(x, y, char)
-    topx, topy, _, _ = get_dims
-    edit = craft_edit(topx + x, topy + y, char)
+    edit = craft_edit(x, y, char)
     ty, tx, y, x, _, _, _ = edit
     offset = tile_offset(x, y)
     (@tiles[[tx, ty]]["content"][offset] = char) rescue NoMethodError
