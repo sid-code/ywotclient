@@ -60,11 +60,12 @@ class YWOTClient
     EM::HttpRequest.new(@url).get(query: params).callback do |http|
       begin
         data = JSON.parse(http.response)
-        data.each do |coords, tile|
-          @tiles[coords.split(",").map(&:to_i).reverse] = tile
-        end
       rescue JSON::ParserError => e
         status "server sent an error"
+      end
+
+      data.each do |coords, tile|
+        @tiles[coords.split(",").map(&:to_i).reverse] = tile
       end
     end.errback do |http|
       raise http.error
