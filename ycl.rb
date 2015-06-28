@@ -42,6 +42,12 @@ class YWOTClient
     get_tile(x, y)["content"]
   end
 
+  def get_cell_content(x, y)
+    ty, tx, x, y = pos_to_loc(x, y)
+    content = get_tile_content(tx, ty)
+    content[tile_offset(y, x)]
+  end
+
   def make_request(minx, miny, maxx = minx, maxy = miny)
     params = {
       fetch: 1,
