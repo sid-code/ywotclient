@@ -10,6 +10,9 @@ Start it with `ruby ycl.rb`.
 
 Initially it will take a few seconds to fetch the screen.
 
+**Note: due to changes in the YWOT server, this program no longer works.**
+It is possible to fix it but I don't know how yet.
+
 ## Controls
 
 Control is modal, inspired by vi. There is normal mode and insert mode.
