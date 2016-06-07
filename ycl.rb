@@ -159,6 +159,15 @@ class YWOTClient
     status "sent #{edits_to_send.size} edits"
   end
 
+  def start_send_edit_loop
+    EM.add_periodic_timer(EDIT_SEND_RATE) do
+      next if @edit_queue.size == 0
+      next if !@csrf_cookie
+
+      send_edits
+    end
+  end
+
   def display
     Curses.init_screen
     Curses.crmode
@@ -178,12 +187,7 @@ class YWOTClient
       draw
     end
 
-    EM.add_periodic_timer(EDIT_SEND_RATE) do
-      next if @edit_queue.size == 0
-      next if !@csrf_cookie
-
-      send_edits
-    end
+    start_send_edit_loop
 
     EM.add_periodic_timer(POLL_RATE) do
       cmd = Curses.getch
