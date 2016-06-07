@@ -1,3 +1,4 @@
+require "bundler/setup"
 require "net/http"
 require "uri"
 require "json"
