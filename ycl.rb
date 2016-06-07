@@ -276,13 +276,11 @@ class YWOTClient
     @edit_queue << edit
   end
 
-
-
   def quit
     Curses.close_screen
     exit
   end
-
+#
 
   private def status(msg)
     Curses.setpos(Curses.lines - 1, 0)
