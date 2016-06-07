@@ -21,7 +21,7 @@ class YWOTClient
   def initialize
     # maps [x,y] to tile JSON object as given by server
     @tiles = {}
-    @url = "http://www.yourworldoftext.com/" + (ARGV[0] || "")
+    @url = "http://www.yourworldoftext.com/"
 
     @x = 0
     @y = 0
@@ -76,7 +76,7 @@ class YWOTClient
 
   def obtain_csrf_token
     EM::HttpRequest.new("http://www.yourworldoftext.com/").get.callback do |http|
-      @csrf_cookie = http.response_header["SET_COOKIE"].split(/;\s*/).first
+      @csrf_cookie = http.response_header["SET_COOKIE"][1].split(/;\s*/).first
       @csrf_token = @csrf_cookie.split("=").last
     end.errback do |http|
       raise "failed to obtain CSRF token!"
@@ -101,7 +101,7 @@ class YWOTClient
 
   def craft_edit_raw(tile_y, tile_x, x, y, char)
     time = Time.now.to_i * 1000
-    [tile_y, tile_x, x, y, time, char, "Email me before scripting"]
+    [tile_y, tile_x, x, y, time, char, 1]
   end
 
   def craft_edit(x, y, char)
@@ -147,10 +147,12 @@ class YWOTClient
   def send_edits
     edits_to_send = @edit_queue.shift(EDIT_BATCH_SIZE)
 
-    EM::HttpRequest.new(@url).post(
-
-      head: {"cookie" => @csrf_cookie, "X-CSRFToken" => @csrf_token},
-      body: "edits=#{JSON.dump(edits_to_send)}"
+    EM::HttpRequest.new(@url + "/api/write/").post(
+      head: {"Cookie" => @csrf_cookie, "X-CSRFToken" => @csrf_token},
+      body: {
+        world: "",
+        edits: JSON.dump(edits_to_send)
+      }
     ).callback do |http|
     end
 
